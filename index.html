@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花谱 - 花草识别与记录应用</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4CAF50',
+                        secondary: '#8BC34A',
+                        accent: '#FF9800',
+                        neutral: '#f5f5f5',
+                        'neutral-dark': '#333333',
+                        'spring': '#E8F5E9',
+                        'summer': '#FFF3E0',
+                        'autumn': '#FFCCBC',
+                        'winter': '#E3F2FD'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Noto Serif SC', 'serif']
+                    },
+                    animation: {
+                        'bloom': 'bloom 1.5s ease-in-out forwards',
+                        'fade-in': 'fadeIn 0.8s ease-in-out forwards',
+                        'slide-up': 'slideUp 0.8s ease-in-out forwards',
+                        'pulse-slow': 'pulse 3s infinite'
+                    },
+                    keyframes: {
+                        bloom: {
+                            '0%': { transform: 'scale(0.3) rotate(0deg)', opacity: 0.5 },
+                            '50%': { transform: 'scale(1.1) rotate(5deg)', opacity: 0.8 },
+                            '100%': { transform: 'scale(1) rotate(0deg)', opacity: 1 }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: 0 },
+                            '100%': { opacity: 1 }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: 0 },
+                            '100%': { transform: 'translateY(0)', opacity: 1 }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+            }
+            .text-shadow-lg {
+                text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+            }
+            .bg-blur {
+                backdrop-filter: blur(8px);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .month-tab {
+                @apply px-4 py-2 rounded-t-lg transition-all duration-300;
+            }
+            .month-tab.active {
+                @apply bg-white shadow-md text-primary border-b-2 border-primary;
+            }
+            .month-tab:not(.active) {
+                @apply bg-gray-100 text-gray-600 hover:bg-gray-200;
+            }
+        }
+    </style>
+</head>
+<body class="bg-neutral min-h-screen font-sans text-neutral-dark">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-leaf text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-primary">花谱</h1>
+            </div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#identify" class="nav-link text-gray-700 hover:text-primary transition-all-300">识别花草</a>
+                <a href="#records" class="nav-link text-gray-700 hover:text-primary transition-all-300">我的花谱</a>
+                <a href="#monthly" class="nav-link text-gray-700 hover:text-primary transition-all-300">月份花历</a>
+            </div>
+            <button id="mobile-menu-button" class="md:hidden text-gray-700 focus:outline-none">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="hidden md:hidden bg-white shadow-lg absolute w-full">
+            <div class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+                <a href="#identify" class="mobile-nav-link py-2 text-gray-700 hover:text-primary transition-all-300">识别花草</a>
+                <a href="#records" class="mobile-nav-link py-2 text-gray-700 hover:text-primary transition-all-300">我的花谱</a>
+                <a href="#monthly" class="mobile-nav-link py-2 text-gray-700 hover:text-primary transition-all-300">月份花历</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 欢迎区域 -->
+        <section class="mb-12 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 text-primary">发现自然之美，记录花草之韵</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">上传一张花草图片，我们将帮您识别它的种类，并创建属于您的个性化花谱集。</p>
+        </section>
+
+        <!-- 识别花草区域 -->
+        <section id="identify" class="mb-16 bg-white rounded-xl shadow-md p-6 md:p-8 animate-fade-in">
+            <h3 class="text-2xl font-bold mb-6 text-primary border-b pb-3">识别花草</h3>
+            <div class="max-w-3xl mx-auto">
+                <div id="upload-container" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-all duration-300">
+                    <i class="fa fa-cloud-upload text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-600 mb-2">点击或拖拽上传图片</p>
+                    <p class="text-gray-400 text-sm">支持 JPG、PNG 格式，最大 5MB</p>
+                    <input type="file" id="image-upload" class="hidden" accept="image/*">
+                </div>
+                
+                <div id="preview-container" class="hidden mt-6">
+                    <h4 class="text-lg font-semibold mb-3">预览图片</h4>
+                    <div class="relative">
+                        <img id="image-preview" class="w-full h-auto rounded-lg shadow-md max-h-80 object-contain" alt="预览图片">
+                        <button id="remove-image" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-all duration-300">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button id="identify-button" class="bg-primary hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-all duration-300 flex items-center justify-center mx-auto">
+                            <i class="fa fa-search mr-2"></i> 开始识别
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="loading-container" class="hidden mt-6 text-center">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                    <p class="mt-3 text-gray-600">正在识别中，请稍候...</p>
+                </div>
+                
+                <div id="result-container" class="hidden mt-8 animate-fade-in">
+                    <div class="bg-green-50 border-l-4 border-primary p-4 mb-6">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fa fa-check-circle text-primary text-xl"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-gray-700 font-medium">识别成功！</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="result-content" class="bg-white rounded-lg shadow-md overflow-hidden">
+                        <!-- 识别结果将在这里动态插入 -->
+                    </div>
+                    
+                    <div class="mt-6 flex justify-center">
+                        <button id="save-to-records" class="bg-primary hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-all duration-300 flex items-center">
+                            <i class="fa fa-save mr-2"></i> 保存到花谱
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 我的花谱区域 -->
+        <section id="records" class="mb-16 bg-white rounded-xl shadow-md p-6 md:p-8 animate-fade-in">
+            <h3 class="text-2xl font-bold mb-6 text-primary border-b pb-3">我的花谱</h3>
+            
+            <div id="no-records" class="text-center py-12">
+                <i class="fa fa-book text-gray-300 text-5xl mb-4"></i>
+                <p class="text-gray-500 text-lg">您的花谱集还没有记录</p>
+                <p class="text-gray-400 mt-2">识别花草并保存到花谱，开始创建您的专属花谱集吧！</p>
+                <a href="#identify" class="mt-6 inline-block bg-primary hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg shadow-md transition-all duration-300">
+                    开始识别
+                </a>
+            </div>
+            
+            <div id="records-container" class="hidden">
+                <div class="flex flex-wrap -mx-3">
+                    <!-- 花谱记录将在这里动态插入 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 月份花历区域 -->
+        <section id="monthly" class="mb-16 bg-white rounded-xl shadow-md p-6 md:p-8 animate-fade-in">
+            <h3 class="text-2xl font-bold mb-6 text-primary border-b pb-3">月份花历</h3>
+            
+            <div class="mb-6 overflow-x-auto">
+                <div class="flex space-x-2 min-w-max">
+                    <button class="month-tab active" data-month="1">一月</button>
+                    <button class="month-tab" data-month="2">二月</button>
+                    <button class="month-tab" data-month="3">三月</button>
+                    <button class="month-tab" data-month="4">四月</button>
+                    <button class="month-tab" data-month="5">五月</button>
+                    <button class="month-tab" data-month="6">六月</button>
+                    <button class="month-tab" data-month="7">七月</button>
+                    <button class="month-tab" data-month="8">八月</button>
+                    <button class="month-tab" data-month="9">九月</button>
+                    <button class="month-tab" data-month="10">十月</button>
+                    <button class="month-tab" data-month="11">十一月</button>
+                    <button class="month-tab" data-month="12">十二月</button>
+                </div>
+            </div>
+            
+            <div id="monthly-content" class="mt-6">
+                <!-- 月份花历内容将在这里动态插入 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa fa-leaf text-primary text-xl"></i>
+                        <h2 class="text-lg font-bold">花谱</h2>
+                    </div>
+                    <p class="text-gray-400 mt-2 text-sm">发现自然之美，记录花草之韵</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-twitter text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-instagram text-xl"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="mt-6 pt-6 border-t border-gray-700 text-center text-gray-400 text-sm">
+                <p>&copy; 2025 花谱应用 - 保留所有权利</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 花朵绽放动画模态框 -->
+    <div id="bloom-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-black bg-opacity-75" id="modal-overlay"></div>
+        <div class="relative bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 z-10 animate-fade-in">
+            <button id="close-modal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-all duration-300">
+                <i class="fa fa-times text-xl"></i>
+            </button>
+            <div id="bloom-content" class="text-center">
+                <!-- 绽放动画内容将在这里动态插入 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 植物数据库
+        const plantDatabase = [
+            {
+                id: "plum",
+                name: "梅花",
+                scientificName: "Prunus mume",
+                family: "蔷薇科",
+                description: "梅花是蔷薇科杏属的落叶乔木，花先于叶开放，花瓣五片，有白、红、粉等多种颜色，香气浓郁。梅花是中国传统名花之一，象征着坚韧不拔、不屈不挠的精神。",
+                floweringPeriod: [1, 2],
+                flowerLanguage: "坚强、高雅、忠贞",
+                poems: [
+                    "墙角数枝梅，凌寒独自开。遥知不是雪，为有暗香来。",
+                    "疏影横斜水清浅，暗香浮动月黄昏。"
+                ],
+                imageUrl: "https://p3-doubao-search-sign.byteimg.com/labis/055ae1671d29308b84c3e467e0e937dc~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775651&x-signature=plZmHQwnjx9M0enRCp13SW8inFY%3D"
+            },
+            {
+                id: "apricot",
+                name: "杏花",
+                scientificName: "Prunus armeniaca",
+                family: "蔷薇科",
+                description: "杏花是蔷薇科杏属植物杏树的花，花瓣白色或略带红晕，花形与梅花相似，但花期稍晚。杏花在中国文化中象征着春天的到来和新的开始。",
+                floweringPeriod: [2, 3],
+                flowerLanguage: "娇羞、烂漫、幸福",
+                poems: [
+                    "沾衣欲湿杏花雨，吹面不寒杨柳风。",
+                    "红杏枝头春意闹，绿杨烟外晓寒轻。"
+                ],
+                imageUrl: "https://p3-doubao-search-sign.byteimg.com/labis/0fc63a81bbdd98197503200d67473518~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775651&x-signature=dEL42qWnFMxRQNSlEpnMa9ifmLM%3D"
+            },
+            {
+                id: "peach",
+                name: "桃花",
+                scientificName: "Prunus persica",
+                family: "蔷薇科",
+                description: "桃花是蔷薇科桃属植物桃树的花，花瓣粉红色，花形优美，花期在春季。桃花在中国文化中象征着爱情和美好的生活。",
+                floweringPeriod: [3, 4],
+                flowerLanguage: "爱情、浪漫、吉祥",
+                poems: [
+                    "去年今日此门中，人面桃花相映红。",
+                    "桃之夭夭，灼灼其华。之子于归，宜其室家。"
+                ],
+                imageUrl: "https://p26-doubao-search-sign.byteimg.com/labis/c3bbca70ab6bbb8553666be9484b53ab~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775651&x-signature=N9GTNwjiS9wlXioNKyvkjtHuIlo%3D"
+            },
+            {
+                id: "peony",
+                name: "牡丹花",
+                scientificName: "Paeonia suffruticosa",
+                family: "芍药科",
+                description: "牡丹花是芍药科芍药属的落叶灌木，花大而美丽，有红、粉、白、紫等多种颜色，被誉为'花中之王'。牡丹花在中国文化中象征着富贵和吉祥。",
+                floweringPeriod: [4, 5],
+                flowerLanguage: "富贵、圆满、繁荣昌盛",
+                poems: [
+                    "唯有牡丹真国色，花开时节动京城。",
+                    "国色朝酣酒，天香夜染衣。"
+                ],
+                imageUrl: "https://p3-doubao-search-sign.byteimg.com/tos-cn-i-qvj2lq49k0/53b4dbac35fc425a94240ada6950a8f9~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775651&x-signature=KvnGkH%2BrG3CsuQx6pu5oQ0DDxoc%3D"
+            },
+            {
+                id: "pomegranate",
+                name: "石榴花",
+                scientificName: "Punica granatum",
+                family: "石榴科",
+                description: "石榴花是石榴科石榴属植物石榴的花，花色鲜艳，多为红色，花期在春末夏初。石榴在中国文化中象征着多子多福。",
+                floweringPeriod: [5, 6],
+                flowerLanguage: "多子多福、红红火火",
+                poems: [
+                    "五月榴花照眼明，枝间时见子初成。",
+                    "榴花初染火般红，果实涂丹映碧空。"
+                ],
+                imageUrl: "https://p26-doubao-search-sign.byteimg.com/tos-cn-i-be4g95zd3a/1214223813389582496~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775651&x-signature=XscS%2F9ylECwYj%2BQXx1tWXlQQOTE%3D"
+            },
+            {
+                id: "lotus",
+                name: "荷花",
+                scientificName: "Nelumbo nucifera",
+                family: "睡莲科",
+                description: "荷花是睡莲科莲属的多年生水生草本植物，花大而美丽，有红、粉、白等多种颜色，花期在夏季。荷花在中国文化中象征着纯洁和高雅。",
+                floweringPeriod: [6, 7, 8],
+                flowerLanguage: "清白、纯洁、君子之风",
+                poems: [
+                    "出淤泥而不染，濯清涟而不妖。",
+                    "接天莲叶无穷碧，映日荷花别样红。"
+                ],
+                imageUrl: "https://p3-doubao-search-sign.byteimg.com/labis/ac0fde78d6241c92f757729b24ac2442~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775651&x-signature=OfMLKA0uiv6It8DS0T0M3NMUFEo%3D"
+            },
+            {
+                id: "hollyhock",
+                name: "蜀葵",
+                scientificName: "Alcea rosea",
+                family: "锦葵科",
+                description: "蜀葵是锦葵科蜀葵属的多年生草本植物，花大而美丽，有红、粉、白、紫等多种颜色，花期在夏季。蜀葵在中国文化中象征着梦想和追求。",
+                floweringPeriod: [7, 8],
+                flowerLanguage: "梦、温柔、追求",
+                poems: [
+                    "蜀葵花开一丈高，千枝万朵压栏桥。",
+                    "昨日一花开，今日一花开。今日花正好，昨日花已老。"
+                ],
+                imageUrl: "https://p3-doubao-search-sign.byteimg.com/tos-cn-i-be4g95zd3a/973686549402484855~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775682&x-signature=Jvdzxc7lhhMtB0y9t2FB8vIO%2Ffo%3D"
+            },
+            {
+                id: "osmanthus",
+                name: "桂花",
+                scientificName: "Osmanthus fragrans",
+                family: "木樨科",
+                description: "桂花是木樨科木樨属的常绿灌木或小乔木，花小而芳香，多为黄色或白色，花期在秋季。桂花在中国文化中象征着吉祥和美好。",
+                floweringPeriod: [8, 9],
+                flowerLanguage: "吉祥、崇高、团圆美满",
+                poems: [
+                    "人闲桂花落，夜静春山空。",
+                    "桂子月中落，天香云外飘。"
+                ],
+                imageUrl: "https://p3-doubao-search-sign.byteimg.com/labis/127dd95af273e3eb3dac533292e5fe86~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775682&x-signature=9UnX7tyRo2j01Opq9SRO8MKZ5qY%3D"
+            },
+            {
+                id: "chrysanthemum",
+                name: "菊花",
+                scientificName: "Chrysanthemum morifolium",
+                family: "菊科",
+                description: "菊花是菊科菊属的多年生草本植物，花形多样，花色丰富，花期在秋季。菊花在中国文化中象征着高洁和长寿。",
+                floweringPeriod: [9, 10],
+                flowerLanguage: "长寿、高洁、淡泊名利",
+                poems: [
+                    "采菊东篱下，悠然见南山。",
+                    "不是花中偏爱菊，此花开尽更无花。"
+                ],
+                imageUrl: "https://p11-doubao-search-sign.byteimg.com/labis/58b91a11718fad8ab4effc4dc61c5baa~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775682&x-signature=gG3UEFyYL4SRP3vmIkj5UWIRneY%3D"
+            },
+            {
+                id: "hibiscus",
+                name: "芙蓉花",
+                scientificName: "Hibiscus mutabilis",
+                family: "锦葵科",
+                description: "芙蓉花是锦葵科木槿属的落叶灌木或小乔木，花大而美丽，颜色会随时间变化，花期在秋季。芙蓉花在中国文化中象征着纯洁和吉祥。",
+                floweringPeriod: [10, 11],
+                flowerLanguage: "纤细之美、纯洁、吉祥",
+                poems: [
+                    "木末芙蓉花，山中发红萼。",
+                    "芙蓉生在秋江上，不向东风怨未开。"
+                ],
+                imageUrl: "https://p26-doubao-search-sign.byteimg.com/labis/43632ee6f6c1af025c7c87565804cbfc~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775682&x-signature=Sm0HxUGR5yBm1Dxcn59RlbEWgCU%3D"
+            },
+            {
+                id: "camellia",
+                name: "山茶花",
+                scientificName: "Camellia japonica",
+                family: "山茶科",
+                description: "山茶花是山茶科山茶属的常绿灌木或小乔木，花大而美丽，有红、粉、白等多种颜色，花期在冬春季。山茶花在中国文化中象征着理想的爱和谦让。",
+                floweringPeriod: [11, 12, 1, 2],
+                flowerLanguage: "理想的爱、谦让、坚韧",
+                poems: [
+                    "东园三月雨兼风，桃李飘零扫地空。唯有山茶偏耐久，绿丛又放数枝红。",
+                    "花近东溪居士家，好携樽酒款携茶。"
+                ],
+                imageUrl: "https://p26-doubao-search-sign.byteimg.com/labis/5902287b63d8b9ec5126de583e5bac7a~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775682&x-signature=G72lSflR0jK2AYNE460h9Walj1E%3D"
+            },
+            {
+                id: "narcissus",
+                name: "水仙花",
+                scientificName: "Narcissus tazetta var. chinensis",
+                family: "石蒜科",
+                description: "水仙花是石蒜科水仙属的多年生草本植物，花白色，有黄色杯状副冠，香气浓郁，花期在冬季。水仙花在中国文化中象征着纯洁和吉祥。",
+                floweringPeriod: [12, 1, 2],
+                flowerLanguage: "纯洁、吉祥、思念团圆",
+                poems: [
+                    "得水能仙天与奇，寒香寂寞动冰肌。",
+                    "凌波仙子生尘袜，水上轻盈步微月。"
+                ],
+                imageUrl: "https://p26-doubao-search-sign.byteimg.com/labis/05ef1b598318a92d05d670c8bce62012~tplv-be4g95zd3a-image.jpeg?lk3s=feb11e32&x-expires=1790775682&x-signature=WTwb3si9k%2BSSbCNLZ8kg6%2FUKHRk%3D"
+            }
+        ];
+
+        // DOM 元素
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const uploadContainer = document.getElementById('upload-container');
+        const imageUpload = document.getElementById('image-upload');
+        const previewContainer = document.getElementById('preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImage = document.getElementById('remove-image');
+        const identifyButton = document.getElementById('identify-button');
+        const loadingContainer = document.getElementById('loading-container');
+        const resultContainer = document.getElementById('result-container');
+        const resultContent = document.getElementById('result-content');
+        const saveToRecords = document.getElementById('save-to-records');
+        const noRecords = document.getElementById('no-records');
+        const recordsContainer = document.getElementById('records-container');
+        const monthlyContent = document.getElementById('monthly-content');
+        const monthTabs = document.querySelectorAll('.month-tab');
+        const bloomModal = document.getElementById('bloom-modal');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const closeModal = document.getElementById('close-modal');
+        const bloomContent = document.getElementById('bloom-content');
+
+        // 移动端菜单切换
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // 移动端菜单项点击
+        document.querySelectorAll('.mobile-nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+            });
+        });
+
+        // 上传图片
+        uploadContainer.addEventListener('click', () => {
+            imageUpload.click();
+        });
+
+        uploadContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadContainer.classList.add('border-primary');
+        });
+
+        uploadContainer.addEventListener('dragleave', () => {
+            uploadContainer.classList.remove('border-primary');
+        });
+
+        uploadContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadContainer.classList.remove('border-primary');
+            
+            if (e.dataTransfer.files.length > 0) {
+                handleImageUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        imageUpload.addEventListener('change', () => {
+            if (imageUpload.files.length > 0) {
+                handleImageUpload(imageUpload.files[0]);
+            }
+        });
+
+        // 处理图片上传
+        function handleImageUpload(file) {
+            if (!file.type.match('image.*')) {
+                alert('请上传图片文件！');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('图片大小不能超过 5MB！');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                previewContainer.classList.remove('hidden');
+                uploadContainer.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 移除图片
+        removeImage.addEventListener('click', () => {
+            imagePreview.src = '';
+            previewContainer.classList.add('hidden');
+            uploadContainer.classList.remove('hidden');
+            imageUpload.value = '';
+        });
+
+        // 识别按钮点击
+        identifyButton.addEventListener('click', () => {
+            previewContainer.classList.add('hidden');
+            loadingContainer.classList.remove('hidden');
+            
+            // 模拟识别过程
+            setTimeout(() => {
+                loadingContainer.classList.add('hidden');
+                resultContainer.classList.remove('hidden');
+                
+                // 随机选择一种植物作为识别结果
+                const randomPlant = plantDatabase[Math.floor(Math.random() * plantDatabase.length)];
+                displayIdentificationResult(randomPlant);
+                
+                // 保存当前识别结果，用于后续保存到花谱
+                window.currentIdentificationResult = randomPlant;
+            }, 2000);
+        });
+
+        // 显示识别结果
+        function displayIdentificationResult(plant) {
+            resultContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <img src="${plant.imageUrl}" alt="${plant.name}" class="w-full h-64 object-cover rounded-lg shadow-md">
+                    </div>
+                    <div>
+                        <h4 class="text-2xl font-bold text-primary mb-2">${plant.name}</h4>
+                        <p class="text-gray-600 italic mb-4">${plant.scientificName}</p>
+                        <div class="mb-4">
+                            <span class="font-semibold">科属：</span>
+                            <span>${plant.family}</span>
+                        </div>
+                        <div class="mb-4">
+                            <span class="font-semibold">花期：</span>
+                            <span>${plant.floweringPeriod.map(month => `${month}月`).join('、')}</span>
+                        </div>
+                        <div class="mb-4">
+                            <span class="font-semibold">花语：</span>
+                            <span>${plant.flowerLanguage}</span>
+                        </div>
+                        <div class="mt-6">
+                            <h5 class="font-semibold mb-2">植物简介</h5>
+                            <p class="text-gray-700">${plant.description}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8">
+                    <h5 class="text-lg font-semibold mb-4 text-primary">相关诗句</h5>
+                    <div class="bg-gray-50 p-6 rounded-lg border-l-4 border-primary">
+                        ${plant.poems.map(poem => `
+                            <div class="mb-4 last:mb-0">
+                                <p class="text-gray-700 italic">"${poem}"</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 保存到花谱
+        saveToRecords.addEventListener('click', () => {
+            if (!window.currentIdentificationResult) return;
+            
+            // 获取用户花谱记录
+            let userRecords = JSON.parse(localStorage.getItem('flowerRecords') || '[]');
+            
+            // 创建新记录
+            const newRecord = {
+                id: Date.now().toString(),
+                plantId: window.currentIdentificationResult.id,
+                name: window.currentIdentificationResult.name,
+                scientificName: window.currentIdentificationResult.scientificName,
+                imageUrl: window.currentIdentificationResult.imageUrl,
+                userImage: imagePreview.src,
+                dateAdded: new Date().toISOString().split('T')[0],
+                floweringPeriod: window.currentIdentificationResult.floweringPeriod
+            };
+            
+            // 添加到记录中
+            userRecords.push(newRecord);
+            
+            // 保存到本地存储
+            localStorage.setItem('flowerRecords', JSON.stringify(userRecords));
+            
+            // 显示成功提示
+            alert('已成功保存到花谱！');
+            
+            // 重置识别区域
+            resetIdentificationArea();
+            
+            // 更新花谱记录显示
+            updateRecordsDisplay();
+        });
+
+        // 重置识别区域
+        function resetIdentificationArea() {
+            resultContainer.classList.add('hidden');
+            previewContainer.classList.add('hidden');
+            uploadContainer.classList.remove('hidden');
+            imageUpload.value = '';
+            window.currentIdentificationResult = null;
+        }
+
+        // 更新花谱记录显示
+        function updateRecordsDisplay() {
+            const userRecords = JSON.parse(localStorage.getItem('flowerRecords') || '[]');
+            
+            if (userRecords.length === 0) {
+                noRecords.classList.remove('hidden');
+                recordsContainer.classList.add('hidden');
+                return;
+            }
+            
+            noRecords.classList.add('hidden');
+            recordsContainer.classList.remove('hidden');
+            
+            // 清空容器
+            recordsContainer.innerHTML = '';
+            
+            // 添加记录卡片
+            userRecords.forEach(record => {
+                const recordCard = document.createElement('div');
+                recordCard.className = 'w-full md:w-1/2 lg:w-1/3 px-3 mb-6';
+                recordCard.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden card-hover">
+                        <div class="relative">
+                            <img src="${record.userImage}" alt="${record.name}" class="w-full h-48 object-cover">
+                            <div class="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md cursor-pointer delete-record" data-id="${record.id}">
+                                <i class="fa fa-trash text-red-500 hover:text-red-600"></i>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-lg font-bold text-primary">${record.name}</h4>
+                                    <p class="text-gray-500 text-sm italic">${record.scientificName}</p>
+                                </div>
+                                <button class="bloom-button bg-primary hover:bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-300" data-plant-id="${record.plantId}">
+                                    <i class="fa fa-play"></i>
+                                </button>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex items-center text-sm text-gray-600">
+                                    <i class="fa fa-calendar mr-2"></i>
+                                    <span>记录日期：${record.dateAdded}</span>
+                                </div>
+                                <div class="flex items-center text-sm text-gray-600 mt-1">
+                                    <i class="fa fa-leaf mr-2"></i>
+                                    <span>花期：${record.floweringPeriod.map(month => `${month}月`).join('、')}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                recordsContainer.appendChild(recordCard);
+            });
+            
+            // 添加删除记录事件
+            document.querySelectorAll('.delete-record').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const recordId = button.getAttribute('data-id');
+                    deleteRecord(recordId);
+                });
+            });
+            
+            // 添加绽放动画事件
+            document.querySelectorAll('.bloom-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const plantId = button.getAttribute('data-plant-id');
+                    showBloomAnimation(plantId);
+                });
+            });
+        }
+
+        // 删除记录
+        function deleteRecord(recordId) {
+            if (!confirm('确定要删除这条记录吗？')) return;
+            
+            let userRecords = JSON.parse(localStorage.getItem('flowerRecords') || '[]');
+            userRecords = userRecords.filter(record => record.id !== recordId);
+            localStorage.setItem('flowerRecords', JSON.stringify(userRecords));
+            
+            updateRecordsDisplay();
+        }
+
+        // 显示绽放动画
+        function showBloomAnimation(plantId) {
+            const plant = plantDatabase.find(p => p.id === plantId);
+            if (!plant) return;
+            
+            bloomContent.innerHTML = `
+                <div class="mb-6">
+                    <img src="${plant.imageUrl}" alt="${plant.name}" class="w-full h-64 object-contain bloom-image">
+                </div>
+                <h3 class="text-2xl font-bold text-primary mb-2">${plant.name}</h3>
+                <p class="text-gray-600 italic mb-4">${plant.scientificName}</p>
+                <div class="mb-4">
+                    <span class="font-semibold">花语：</span>
+                    <span>${plant.flowerLanguage}</span>
+                </div>
+                <div class="mt-6">
+                    <p class="text-gray-700 italic">"${plant.poems[0]}"</p>
+                </div>
+            `;
+            
+            bloomModal.classList.remove('hidden');
+            
+            // 添加绽放动画
+            setTimeout(() => {
+                document.querySelector('.bloom-image').classList.add('animate-bloom');
+            }, 100);
+        }
+
+        // 关闭模态框
+        closeModal.addEventListener('click', () => {
+            bloomModal.classList.add('hidden');
+        });
+
+        modalOverlay.addEventListener('click', () => {
+            bloomModal.classList.add('hidden');
+        });
+
+        // 月份标签切换
+        monthTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 移除所有标签的活动状态
+                monthTabs.forEach(t => t.classList.remove('active'));
+                
+                // 添加当前标签的活动状态
+                tab.classList.add('active');
+                
+                // 更新月份花历内容
+                const month = parseInt(tab.getAttribute('data-month'));
+                updateMonthlyDisplay(month);
+            });
+        });
+
+        // 更新月份花历显示
+        function updateMonthlyDisplay(month) {
+            // 获取当月开花的植物
+            const monthPlants = plantDatabase.filter(plant => plant.floweringPeriod.includes(month));
+            
+            if (monthPlants.length === 0) {
+                monthlyContent.innerHTML = `
+                    <div class="text-center py-12">
+                        <i class="fa fa-leaf text-gray-300 text-5xl mb-4"></i>
+                        <p class="text-gray-500 text-lg">${month}月暂无开花植物记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            monthlyContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${monthPlants.map(plant => `
+                        <div class="bg-white rounded-lg shadow-md overflow-hidden card-hover month-plant-card" data-plant-id="${plant.id}">
+                            <img src="${plant.imageUrl}" alt="${plant.name}" class="w-full h-48 object-cover">
+                            <div class="p-4">
+                                <h4 class="text-lg font-bold text-primary mb-1">${plant.name}</h4>
+                                <p class="text-gray-500 text-sm italic mb-3">${plant.scientificName}</p>
+                                <div class="mb-3">
+                                    <span class="font-semibold">科属：</span>
+                                    <span class="text-gray-700">${plant.family}</span>
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-semibold">花语：</span>
+                                    <span class="text-gray-700">${plant.flowerLanguage}</span>
+                                </div>
+                                <div class="mt-4 pt-3 border-t border-gray-100">
+                                    <p class="text-gray-600 text-sm">
+                                        <i class="fa fa-quote-left text-primary mr-2"></i>
+                                        ${plant.poems[0]}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            // 添加植物卡片点击事件
+            document.querySelectorAll('.month-plant-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const plantId = card.getAttribute('data-plant-id');
+                    showBloomAnimation(plantId);
+                });
+            });
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 更新花谱记录显示
+            updateRecordsDisplay();
+            
+            // 更新月份花历显示（默认显示当前月份）
+            const currentMonth = new Date().getMonth() + 1;
+            document.querySelector(`.month-tab[data-month="${currentMonth}"]`).click();
+            
+            // 平滑滚动
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    
+                    if (targetElement) {
+                        window.scrollTo({
+                            top: targetElement.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
